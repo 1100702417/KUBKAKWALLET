@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>KUBKAK Wallet</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script src="https://unpkg.com/web3modal"></script>
+  <script src="https://unpkg.com/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    body { font-family: sans-serif; background: #f0f2f5; margin: 0; }
+    .container { max-width: 800px; margin: auto; background: #fff; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+    button { margin: 5px; padding: 10px 15px; border: none; background: #2b90d9; color: white; border-radius: 6px; cursor: pointer; }
+    input { padding: 5px; margin: 5px; }
+    nav { display: flex; gap: 10px; margin-top: 20px; }
+    nav button { flex: 1; background: #eee; color: #333; }
+    nav button.active { background: #2b90d9; color: white; }
+    .section { display: none; margin-top: 20px; }
+    .section.active { display: block; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+    iframe { width: 100%; height: 400px; border: none; margin-top: 10px; }
+
+    /* Modal Style */
+    .modal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; overflow: auto;
+             background-color: rgba(0,0,0,0.7); align-items: center; justify-content: center; }
+    .modal-content { background-color: #fff; margin: auto; padding: 20px; border-radius: 12px; max-width: 400px; position: relative; }
+    .modal-close { position: absolute; top: 10px; right: 15px; font-size: 20px; font-weight: bold; cursor: pointer; color: #333; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>🌐 KUBKAK Wallet (Bitkub Chain)</h2>
+
+    <div id="wallet-info">Not connected</div>
+    <button onclick="connectWallet()">🔗 Connect Wallet</button>
+    <button onclick="logout()">Logout</button>
+
+    <div><b>💰 Token Balance:</b> <span id="balance">-</span></div>
+    <div><b>📈 Price:</b> <span id="price">Loading...</span></div>
+
+    <nav>
+      <button onclick="showSection('send')" id="tab-send">📤 โอน</button>
+      <button onclick="showSection('receive')" id="tab-receive">📥 รับ</button>
+      <button onclick="showSection('history')" id="tab-history">🧾 ประวัติ</button>
+      <button onclick="showSection('chart')" id="tab-chart">📈 กราฟ</button>
+    </nav>
+
+    <!-- Section: Send -->
+    <div id="section-send" class="section">
+      <h3>📤 Send Token</h3>
+      <input type="text" id="to" placeholder="Recipient address" size="50" />
+      <input type="number" id="amount" placeholder="Amount" />
+      <button onclick="sendToken()">Send</button>
+      <button onclick="openScanner()">📷 โอนด้วย QR</button>
+      <h4>🧾 Receipt</h4>
+      <pre id="receipt"></pre>
+    </div>
+
+    <!-- Section: Receive -->
+    <div id="section-receive" class="section">
+      <h3>📥 Receive Token</h3>
+      <div id="my-address">Your address: -</div>
+      <button onclick="openQRModal()">📲 แสดง QR</button>
+      <button onclick="openRequestQR()">📥 ขอรับ Token ด้วย QR</button>
+    </div>
+
+    <!-- Section: History -->
+    <div id="section-history" class="section">
+      <h3>📜 Transfer History</h3>
+      <table>
+        <thead><tr><th>Time</th><th>To</th><th>Amount</th><th>TX</th></tr></thead>
+        <tbody id="history"></tbody>
+      </table>
+    </div>
+
+    <!-- Section: Chart -->
+    <div id="section-chart" class="section">
+      <h3>📈 Token Price Chart</h3>
+      <iframe src="https://www.geckoterminal.com/bitkub_chain/pools/0x559be194fb9d3b8993971f3ec4aad6d1f5beb635?embed=1&info=0&swaps=0&grayscale=0&light_chart=0&chart_type=price&resolution=1month"></iframe>
+    </div>
+  </div>
+
+  <!-- QR Modal -->
+  <div id="qrModal" class="modal">
+    <div class="modal-content">
+      <span class="modal-close" onclick="closeQRModal()">&times;</span>
+      <h4>🔗 QR Address</h4>
+      <div id="qr-modal-content" style="margin-top: 10px;"></div>
+    </div>
+  </div>
+
+  <!-- Scanner Modal -->
+  <div id="scannerModal" class="modal">
+    <div class="modal-content">
+      <span class="modal-close" onclick="closeScanner()">&times;</span>
+      <h4>📷 Scan QR Code</h4>
+      <div id="scanner" style="width: 300px;"></div>
+    </div>
+  </div>
+
+  <!-- Request QR Modal -->
+  <div id="requestQRModal" class="modal">
+    <div class="modal-content">
+      <span class="modal-close" onclick="closeRequestQR()">&times;</span>
+      <h4>📥 สร้าง QR ขอรับ Token</h4>
+      <input type="number" id="request-amount" placeholder="จำนวน Token" />
+      <button onclick="generateRequestQR()">สร้าง QR</button>
+      <div id="request-qr-content" style="margin-top: 15px;"></div>
+    </div>
+  </div>
+
+<script>
+const tokenAddress = "0x559be194fb9d3b8993971f3ec4aad6d1f5beb635";
+const tokenDecimals = 18;
+const providerOptions = {};
+let web3Modal = new window.Web3Modal.default({ cacheProvider: true, providerOptions });
+let provider, signer, userAddress;
+
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(div => div.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(btn => btn.classList.remove('active'));
+  document.getElementById('section-' + id).classList.add('active');
+  document.getElementById('tab-' + id).classList.add('active');
+}
+
+async function connectWallet() {
+  try {
+    const instance = await web3Modal.connect();
+    provider = new ethers.providers.Web3Provider(instance);
+    signer = provider.getSigner();
+    userAddress = await signer.getAddress();
+
+    document.getElementById("wallet-info").innerText = "Connected: " + userAddress;
+    document.getElementById("my-address").innerText = "Your address: " + userAddress;
+    getBalance();
+  } catch (err) {
+    alert("Connection failed: " + err.message);
+  }
+}
+
+function logout() {
+  web3Modal.clearCachedProvider();
+  location.reload();
+}
+
+async function sendToken() {
+  const to = document.getElementById("to").value;
+  const amount = document.getElementById("amount").value;
+  if (!ethers.utils.isAddress(to)) return alert("Invalid recipient address");
+  if (!amount || isNaN(amount) || amount <= 0) return alert("Invalid amount");
+
+  const contract = new ethers.Contract(tokenAddress, [
+    "function transfer(address to, uint256 amount) public returns (bool)"
+  ], signer);
+
+  const amt = ethers.utils.parseUnits(amount, tokenDecimals);
+  const tx = await contract.transfer(to, amt);
+  const receipt = await tx.wait();
+
+  document.getElementById("receipt").innerText = JSON.stringify(receipt, null, 2);
+  saveHistory(to, amount, receipt.transactionHash);
+  getBalance();
+}
+
+function saveHistory(to, amount, tx) {
+  const time = new Date().toLocaleString();
+  const row = `<tr><td>${time}</td><td>${to}</td><td>${amount}</td><td><a href="https://www.kubscan.com/tx/${tx}" target="_blank">View</a></td></tr>`;
+  document.getElementById("history").innerHTML += row;
+
+  let data = JSON.parse(localStorage.getItem("txhistory") || "[]");
+  data.push({ time, to, amount, tx });
+  localStorage.setItem("txhistory", JSON.stringify(data));
+}
+
+function loadHistory() {
+  let data = JSON.parse(localStorage.getItem("txhistory") || "[]");
+  for (const item of data) {
+    const row = `<tr><td>${item.time}</td><td>${item.to}</td><td>${item.amount}</td><td><a href="https://www.kubscan.com/tx/${item.tx}" target="_blank">View</a></td></tr>`;
+    document.getElementById("history").innerHTML += row;
+  }
+}
+
+async function getBalance() {
+  if (!userAddress) return;
+  const contract = new ethers.Contract(tokenAddress, [
+    "function balanceOf(address account) public view returns (uint256)"
+  ], provider);
+  const raw = await contract.balanceOf(userAddress);
+  const formatted = ethers.utils.formatUnits(raw, tokenDecimals);
+  document.getElementById("balance").innerText = parseFloat(formatted).toFixed(8) + " ₿";
+}
+
+async function fetchPrice() {
+  try {
+    const res = await fetch("https://api.geckoterminal.com/api/v2/networks/bitkub_chain/pools/0x559be194fb9d3b8993971f3ec4aad6d1f5beb635");
+    const data = await res.json();
+    const price = parseFloat(data.data.attributes.base_token_price_usd || 0).toFixed(8);
+    document.getElementById("price").innerText = "$" + price + " USD";
+  } catch (e) {
+    document.getElementById("price").innerText = "Unavailable";
+  }
+}
+
+function openQRModal() {
+  document.getElementById("qrModal").style.display = "flex";
+  if (userAddress) {
+    const qr = new QRCodeStyling({
+      width: 200,
+      height: 200,
+      data: "1BILLION:" + userAddress,
+      dotsOptions: { color: "#000", type: "rounded" },
+      backgroundOptions: { color: "#fff" }
+    });
+    document.getElementById("qr-modal-content").innerHTML = "";
+    qr.append(document.getElementById("qr-modal-content"));
+  }
+}
+
+function closeQRModal() {
+  document.getElementById("qrModal").style.display = "none";
+}
+
+let scanner;
+function openScanner() {
+  document.getElementById("scannerModal").style.display = "flex";
+  scanner = new Html5Qrcode("scanner");
+  scanner.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: 250 },
+    qrCodeMessage => {
+      const [addrPart, query] = qrCodeMessage.replace("1BILLION:", "").split("?");
+      document.getElementById("to").value = addrPart;
+
+      if (query) {
+        const params = new URLSearchParams(query);
+        const amount = params.get("amount");
+        if (amount) document.getElementById("amount").value = amount;
+      }
+
+      closeScanner();
+    }
+  ).catch(err => {
+    alert("Camera error: " + err);
+    closeScanner();
+  });
+}
+
+function closeScanner() {
+  if (scanner) {
+    scanner.stop().then(() => scanner.clear());
+  }
+  document.getElementById("scannerModal").style.display = "none";
+}
+
+function openRequestQR() {
+  document.getElementById("requestQRModal").style.display = "flex";
+  document.getElementById("request-qr-content").innerHTML = "";
+  document.getElementById("request-amount").value = "";
+}
+
+function closeRequestQR() {
+  document.getElementById("requestQRModal").style.display = "none";
+}
+
+function generateRequestQR() {
+  const amount = document.getElementById("request-amount").value;
+  if (!amount || isNaN(amount) || amount <= 0) return alert("กรุณากรอกจำนวน Token ที่ถูกต้อง");
+  const data = `1BILLION:${userAddress}?amount=${amount}`;
+  const qr = new QRCodeStyling({
+    width: 200,
+    height: 200,
+    data: data,
+    dotsOptions: { color: "#000", type: "rounded" },
+    backgroundOptions: { color: "#fff" }
+  });
+  document.getElementById("request-qr-content").innerHTML = "";
+  qr.append(document.getElementById("request-qr-content"));
+}
+
+fetchPrice();
+loadHistory();
+showSection('send'); // default tab
+</script>
+</body>
+</html>
