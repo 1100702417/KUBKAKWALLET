@@ -1,37 +1,45 @@
-async function connectWallet() {
-  if (window.ethereum) {
-    try {
-      // เชื่อม MetaMask กับ Bitkub Chain (Chain ID 0x38c)
-      await window.ethereum.request({
-        method: 'wallet_addEthereumChain',
-        params: [{
-          chainId: '0x38c',
-          chainName: 'Bitkub Chain',
-          nativeCurrency: {
-            name: 'Bitkub Coin',
-            symbol: 'KUB',
-            decimals: 18
-          },
-          rpcUrls: ['https://rpc.bitkubchain.io'],
-          blockExplorerUrls: ['https://bkcscan.com/']
-        }]
-      });
+// เริ่มต้น Firebase
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "kubkakwallet.firebaseapp.com",
+  databaseURL: "https://kubkakwallet-default-rtdb.firebaseio.com",
+  projectId: "kubkakwallet",
+  storageBucket: "kubkakwallet.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      const signer = provider.getSigner();
-      const address = await signer.getAddress();
-      document.getElementById("wallet-address").textContent = `Connected: ${address}`;
-
-      // ดึงยอด BKC
-      const balance = await provider.getBalance(address);
-      const bkcBalance = ethers.utils.formatEther(balance);
-      document.getElementById("wallet-balance").textContent = `Balance: ${bkcBalance} KUB`;
-    } catch (err) {
-      console.error("Error connecting wallet:", err);
-      alert("เกิดข้อผิดพลาดในการเชื่อมต่อ MetaMask");
-    }
-  } else {
-    alert("กรุณาติดตั้ง MetaMask ก่อนใช้งาน");
-  }
+// ฟังข้อความแชท
+function listenForMessages() {
+  const chatBox = document.getElementById("chat-box");
+  db.ref("messages").on("child_added", (snapshot) => {
+    const data = snapshot.val();
+    const msg = document.createElement("div");
+    msg.innerHTML = `<strong>${data.name}:</strong> ${data.text}`;
+    chatBox.appendChild(msg);
+    chatBox.scrollTop = chatBox.scrollHeight;
+  });
 }
+
+// ส่งข้อความแชท
+function sendMessage() {
+  const input = document.getElementById("chat-input");
+  const text = input.value.trim();
+  if (!text) return;
+
+  const address = document.getElementById("wallet-address").textContent.replace("Connected: ", "");
+  db.ref("messages").push({
+    name: address,
+    text: text,
+    time: new Date().toISOString()
+  });
+
+  input.value = "";
+}
+
+// เรียกฟังทันทีเมื่อโหลด
+window.addEventListener("load", () => {
+  listenForMessages();
+});
