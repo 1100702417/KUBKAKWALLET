@@ -1,3 +1,14 @@
+      text: text,
+    time: new Date().toISOString()
+  });
+  input.value = "";
+}
+listenForMessages();
+
+// --------------------- QR Scanner ---------------------
+function openQRScanner() {
+  const video = document.getElementById("video");
+  const canvas = document.getElementById("canvas");
   const context = canvas.getContext("2d");
 
   navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
