@@ -4,222 +4,211 @@
   <meta charset="UTF-8" />
   <title>KUBKAK Wallet</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Ethers + Web3Modal -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <script src="https://unpkg.com/web3modal"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
+  <!-- QR code -->
+  <script src="https://cdn.jsdelivr.net/npm/qr-code-styling/lib/qr-code-styling.js"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+
   <style>
     body {
-      font-family: sans-serif;
-      background: #121212;
+      background-color: #121212;
       color: #fff;
+      font-family: sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #1f1f1f;
       padding: 10px;
-      max-width: 600px;
-      margin: auto;
+      text-align: center;
+      font-size: 24px;
+    }
+    main {
+      padding: 20px;
     }
     button {
+      margin: 5px;
       padding: 10px;
-      margin: 5px 0;
-      width: 100%;
-      background: #2196f3;
       border: none;
+      background: #00c896;
       color: #fff;
-      font-weight: bold;
-      cursor: pointer;
       border-radius: 6px;
+      cursor: pointer;
     }
     #chat-box {
-      border: 1px solid #444;
+      background: #1f1f1f;
       height: 200px;
       overflow-y: scroll;
-      padding: 5px;
-      background: #1e1e1e;
-      margin-bottom: 10px;
+      padding: 10px;
+      margin-top: 20px;
+      border-radius: 5px;
     }
     input, textarea {
       width: 100%;
       padding: 8px;
-      background: #1a1a1a;
-      color: #fff;
-      border: 1px solid #333;
-      margin-bottom: 10px;
+      border-radius: 5px;
+      margin: 5px 0;
+      border: none;
     }
-    canvas {
-      display: block;
-      margin: auto;
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.8);
+      justify-content: center;
+      align-items: center;
+      z-index: 999;
+    }
+    .modal-content {
+      background: #2a2a2a;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .modal.show {
+      display: flex;
     }
   </style>
 </head>
 <body>
+  <header>KUBKAK Wallet</header>
+  <main>
+    <div id="wallet-address">Not Connected</div>
+    <button onclick="connect()">Connect Wallet</button>
+    <button onclick="sendToken()">Send Token</button>
+    <button onclick="openQRModal()">Receive (Show QR)</button>
+    <button onclick="openScanner()">Scan QR to Send</button>
 
-<h2>KUBKAK Wallet</h2>
-<div id="wallet-address">Not connected</div>
-<div id="wallet-balance">Balance: -</div>
+    <h3>Global Chat</h3>
+    <div id="chat-box"></div>
+    <input id="chat-input" placeholder="Type a message" />
+    <button onclick="sendMessage()">Send</button>
+  </main>
 
-<button onclick="connectWallet()">🔗 เชื่อม Wallet</button>
+  <!-- Modal for QR -->
+  <div id="qrModal" class="modal" onclick="this.classList.remove('show')">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <h3>Wallet QR Code</h3>
+      <div id="qr-code"></div>
+      <p>Click outside to close</p>
+    </div>
+  </div>
 
-<h3>📤 โอน Token</h3>
-<input type="text" id="to" placeholder="ใส่ address ผู้รับหรือสแกน QR" />
-<input type="number" id="amount" placeholder="จำนวน Token ที่จะโอน" />
-<button onclick="sendToken()">✅ โอน</button>
-<button onclick="openQRScanner()">📷 โอนด้วย QR</button>
+  <!-- Modal for Scanner -->
+  <div id="scannerModal" class="modal" onclick="this.classList.remove('show')">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <h3>Scan QR Code</h3>
+      <div id="reader" style="width: 300px;"></div>
+      <p>Click outside to close</p>
+    </div>
+  </div>
 
-<h3>📥 รับ Token (แสดง QR)</h3>
-<div id="qr"></div>
-<button onclick="generateQR()">📌 Show QR</button>
-<button onclick="copyAddress()">📋 Copy Address</button>
+  <script>
+    const providerOptions = {};
+    const web3Modal = new window.Web3Modal.default({ cacheProvider: true, providerOptions });
+    let provider, signer, address;
 
-<h3>📈 กราฟ Token</h3>
-<iframe src="https://www.geckoterminal.com/th/bkc/pools/0xf42d65b190bb78fb8ead8a92110b653722f96048?embed=1" width="100%" height="300" frameborder="0"></iframe>
+    const tokenAddress = "0x4dc6f1fa9fd93f28d9b3b37592c572ba18bf6f10"; // 1₿illion Coin
+    const tokenAbi = [
+      "function transfer(address to, uint amount) public returns (bool)",
+      "function balanceOf(address owner) public view returns (uint256)"
+    ];
 
-<h3>📚 ประวัติการโอน</h3>
-<div id="history"></div>
+    async function connect() {
+      provider = new ethers.providers.Web3Provider(await web3Modal.connect());
+      signer = provider.getSigner();
+      address = await signer.getAddress();
+      document.getElementById("wallet-address").textContent = "Connected: " + address;
+    }
 
-<h3>💬 Global Chat</h3>
-<div id="chat-box"></div>
-<input type="text" id="chat-input" placeholder="พิมพ์ข้อความ..." />
-<button onclick="sendMessage()">ส่งข้อความ</button>
+    async function sendToken() {
+      const to = prompt("Enter recipient address:");
+      const amount = prompt("Enter amount to send:");
+      const token = new ethers.Contract(tokenAddress, tokenAbi, signer);
+      const decimals = 18;
+      const tx = await token.transfer(to, ethers.utils.parseUnits(amount, decimals));
+      alert("Transaction sent: " + tx.hash);
+    }
 
-<video id="video" width="100%" autoplay style="display:none;"></video>
-<canvas id="canvas" hidden></canvas>
+    // === QR Code Generation ===
+    function openQRModal() {
+      const qrDiv = document.getElementById("qr-code");
+      qrDiv.innerHTML = "";
+      const qr = new QRCodeStyling({
+        width: 250,
+        height: 250,
+        data: address || "Connect wallet first",
+        dotsOptions: { color: "#00FFAA", type: "rounded" },
+        backgroundOptions: { color: "#121212" }
+      });
+      qr.append(qrDiv);
+      document.getElementById("qrModal").classList.add("show");
+    }
 
-<script>
-const tokenAddress = "0x4dc6f1fa9fd93f28d9b3b37592c572ba18bf6f10"; // Token: 1₿illion Coin
-const tokenABI = [
-  "function transfer(address to, uint amount) returns (bool)",
-  "function balanceOf(address owner) view returns (uint)",
-  "event Transfer(address indexed from, address indexed to, uint amount)"
-];
-
-let provider, signer, address;
-
-// Firebase config
-const firebaseConfig = {
-  apiKey: "AIzaSyCQFmvFUxXl4O0S5WSKo9IZsxu9Esmbp6c",
-  authDomain: "kubkakwallet.firebaseapp.com",
-  databaseURL: "https://kubkakwallet-default-rtdb.firebaseio.com",
-  projectId: "kubkakwallet",
-  storageBucket: "kubkakwallet.appspot.com",
-  messagingSenderId: "325567266889",
-  appId: "1:325567266889:web:d74a2ccb4506bfa47bbf98",
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-async function connectWallet() {
-  const web3Modal = new Web3Modal.default({
-    cacheProvider: false,
-    providerOptions: {
-      walletconnect: {
-        package: window.WalletConnectProvider.default,
-        options: {
-          rpc: { 96: "https://rpc.bitkubchain.io" },
+    // === QR Scanner ===
+    function openScanner() {
+      document.getElementById("scannerModal").classList.add("show");
+      const html5QrCode = new Html5Qrcode("reader");
+      html5QrCode.start(
+        { facingMode: "environment" },
+        { fps: 10, qrbox: 250 },
+        async (decoded) => {
+          html5QrCode.stop();
+          document.getElementById("scannerModal").classList.remove("show");
+          if (confirm("Send token to " + decoded + "?")) {
+            const amount = prompt("Enter amount:");
+            const token = new ethers.Contract(tokenAddress, tokenAbi, signer);
+            const tx = await token.transfer(decoded, ethers.utils.parseUnits(amount, 18));
+            alert("Sent: " + tx.hash);
+          }
         },
-      },
-    },
-  });
+        err => {}
+      );
+    }
 
-  const instance = await web3Modal.connect();
-  provider = new ethers.providers.Web3Provider(instance);
-  signer = provider.getSigner();
-  address = await signer.getAddress();
-  document.getElementById("wallet-address").textContent = `Connected: ${address}`;
+    // === Firebase ===
+    const firebaseConfig = {
+      apiKey: "AIzaSyCQFmvFUxXl4O0S5WSKo9IZsxu9Esmbp6c",
+      authDomain: "kubkakwallet.firebaseapp.com",
+      databaseURL: "https://kubkakwallet-default-rtdb.firebaseio.com",
+      projectId: "kubkakwallet",
+      storageBucket: "kubkakwallet.appspot.com",
+      messagingSenderId: "325567266889",
+      appId: "1:325567266889:web:d74a2ccb4506bfa47bbf98",
+      measurementId: "G-HVNMX35LRQ"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-  const balance = await provider.getBalance(address);
-  document.getElementById("wallet-balance").textContent = `Balance: ${ethers.utils.formatEther(balance)} KUB`;
+    function listenForMessages() {
+      const chatBox = document.getElementById("chat-box");
+      db.ref("messages").on("child_added", (snapshot) => {
+        const data = snapshot.val();
+        const msg = document.createElement("div");
+        msg.innerHTML = `<strong>${data.name}:</strong> ${data.text}`;
+        chatBox.appendChild(msg);
+        chatBox.scrollTop = chatBox.scrollHeight;
+      });
+    }
 
-  generateQR();
-  loadHistory();
-}
+    function sendMessage() {
+      const input = document.getElementById("chat-input");
+      const text = input.value.trim();
+      if (!text) return;
+      const name = address || "Anonymous";
+      db.ref("messages").push({ name, text, time: new Date().toISOString() });
+      input.value = "";
+    }
 
-async function sendToken() {
-  const to = document.getElementById("to").value;
-  const amount = document.getElementById("amount").value;
-  const contract = new ethers.Contract(tokenAddress, tokenABI, signer);
-  const tx = await contract.transfer(to, ethers.utils.parseUnits(amount, 18));
-  await tx.wait();
-  alert("โอนสำเร็จ");
-  loadHistory();
-}
-
-function generateQR() {
-  document.getElementById("qr").innerHTML = "";
-  QRCode.toCanvas(document.createElement("canvas"), address, function (err, canvas) {
-    if (err) console.error(err);
-    else document.getElementById("qr").appendChild(canvas);
-  });
-}
-
-function copyAddress() {
-  navigator.clipboard.writeText(address);
-  alert("คัดลอกแล้ว");
-}
-
-function loadHistory() {
-  const historyDiv = document.getElementById("history");
-  historyDiv.innerHTML = "Loading...";
-  const contract = new ethers.Contract(tokenAddress, tokenABI, provider);
-  contract.queryFilter("Transfer", -5000).then(events => {
-    const filtered = events.filter(e => e.args.from === address || e.args.to === address).reverse();
-    historyDiv.innerHTML = filtered.map(e =>
-      `<div>${e.args.from === address ? "📤" : "📥"} ${e.args.to} : ${ethers.utils.formatUnits(e.args.amount, 18)} Token</div>`
-    ).join("");
-  });
-}
-
-// --------------------------- Global Chat -----------------------------
-function listenForMessages() {
-  const chatBox = document.getElementById("chat-box");
-  db.ref("messages").on("child_added", (snapshot) => {
-    const data = snapshot.val();
-    const msg = document.createElement("div");
-    msg.innerHTML = `<strong>${data.name}:</strong> ${data.text}`;
-    chatBox.appendChild(msg);
-    chatBox.scrollTop = chatBox.scrollHeight;
-  });
-}
-function sendMessage() {
-  const input = document.getElementById("chat-input");
-  const text = input.value.trim();
-  if (!text) return;
-  db.ref("messages").push({
-    name: address || "Unknown",
-    text: text,
-    time: new Date().toISOString()
-  });
-  input.value = "";
-}
-listenForMessages();
-
-// --------------------- QR Scanner ---------------------
-function openQRScanner() {
-  const video = document.getElementById("video");
-  const canvas = document.getElementById("canvas");
-  const context = canvas.getContext("2d");
-
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-    .then(stream => {
-      video.srcObject = stream;
-      video.style.display = "block";
-      const interval = setInterval(() => {
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, canvas.width, canvas.height);
-        if (code) {
-          document.getElementById("to").value = code.data;
-          stream.getTracks().forEach(track => track.stop());
-          video.style.display = "none";
-          clearInterval(interval);
-        }
-      }, 500);
+    window.addEventListener("load", () => {
+      listenForMessages();
     });
-}
-</script>
-
-<!-- jsQR สำหรับสแกน QR -->
-<script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
-
+  </script>
 </body>
 </html>
