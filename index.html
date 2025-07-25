@@ -27,10 +27,6 @@
              background-color: rgba(0,0,0,0.7); align-items: center; justify-content: center; }
     .modal-content { background-color: #fff; margin: auto; padding: 20px; border-radius: 12px; max-width: 400px; position: relative; }
     .modal-close { position: absolute; top: 10px; right: 15px; font-size: 20px; font-weight: bold; cursor: pointer; color: #333; }
-    #chat-box { border:1px solid #ccc; height:200px; overflow-y: scroll; padding:10px; background:#fafafa; color:#000; }
-    .chat-msg { margin-bottom:6px; }
-    .chat-msg b { color: #2b90d9; }
-    pre { background:#eee; padding:10px; border-radius:8px; max-height:200px; overflow:auto; }
   </style>
 </head>
 <body>
@@ -43,68 +39,72 @@
     <div><b>📈 Price:</b> <span id="price">Loading...</span></div>
 
     <nav>
-      <button onclick="showSection('send')" id="tab-send">Send</button>
-      <button onclick="showSection('receive')" id="tab-receive">Receive</button>
-      <button onclick="showSection('history')" id="tab-history">History</button>
-      <button onclick="showSection('chart')" id="tab-chart">Price Chart</button>
-      <button onclick="showSection('chat')" id="tab-chat">Chat</button>
+      <button onclick="showSection('send')" id="tab-send">📤 โอน</button>
+      <button onclick="showSection('receive')" id="tab-receive">📥 รับ</button>
+      <button onclick="showSection('history')" id="tab-history">🧾 ประวัติ</button>
+      <button onclick="showSection('chart')" id="tab-chart">📈 กราฟ</button>
+      <button onclick="showSection('chat')" id="tab-chat">💬 แชท</button>
     </nav>
 
     <div id="section-send" class="section">
-      <h3>Send Token</h3>
+      <h3>📤 Send Token</h3>
       <input type="text" id="to" placeholder="Recipient address" size="50" />
       <input type="number" id="amount" placeholder="Amount" />
       <button onclick="sendToken()">Send</button>
-      <button onclick="openScanner()">📷 Send via QR</button>
-      <h4>Receipt</h4>
+      <button onclick="openScanner()">📷 โอนด้วย QR</button>
+      <h4>🧾 Receipt</h4>
       <pre id="receipt"></pre>
     </div>
 
     <div id="section-receive" class="section">
-      <h3>Receive Token</h3>
+      <h3>📥 Receive Token</h3>
       <div id="my-address">Your address: -</div>
-      <button onclick="openQRModal()">📲 Show QR</button>
-      <button onclick="openRequestQR()">📥 Request QR</button>
+      <button onclick="openQRModal()">📲 แสดง QR</button>
+      <button onclick="openRequestQR()">📥 ขอรับ Token ด้วย QR</button>
     </div>
 
     <div id="section-history" class="section">
-      <h3>Transfer History</h3>
-      <table><thead><tr><th>Time</th><th>To</th><th>Amount</th><th>TX</th></tr></thead><tbody id="history"></tbody></table>
+      <h3>📜 Transfer History</h3>
+      <table>
+        <thead><tr><th>Time</th><th>To</th><th>Amount</th><th>TX</th></tr></thead>
+        <tbody id="history"></tbody>
+      </table>
     </div>
 
     <div id="section-chart" class="section">
-      <h3>Token Price Chart</h3>
-      <iframe src="https://www.geckoterminal.com/bitkub_chain/pools/0x559be194fb9d3b8993971f3ec4aad6d1f5beb635?embed=1&chart_type=price&resolution=1month"></iframe>
+      <h3>📈 Token Price Chart</h3>
+      <iframe src="https://www.geckoterminal.com/bitkub_chain/pools/0x559be194fb9d3b8993971f3ec4aad6d1f5beb635?embed=1&info=0&swaps=0&grayscale=0&light_chart=0&chart_type=price&resolution=1month"></iframe>
     </div>
 
     <div id="section-chat" class="section">
-      <h3>Global Chat</h3>
-      <div id="chat-box"></div>
-      <input type="text" id="chat-msg" placeholder="Type a message..." style="width:70%;" />
-      <button onclick="sendChat()">Send</button>
+      <h3>💬 Global Chat</h3>
+      <div id="chat-box" style="border:1px solid #ccc; height:200px; overflow-y:scroll; padding:10px; background:#fafafa; color:#000;"></div>
+      <input type="text" id="chat-msg" placeholder="พิมพ์ข้อความ..." style="width:70%;" />
+      <button onclick="sendChat()">ส่ง</button>
     </div>
   </div>
 
-  <!-- Modals -->
-  <div id="qrModal" class="modal"><div class="modal-content"><span class="modal-close" onclick="closeQRModal()">&times;</span><h4>QR Address</h4><div id="qr-modal-content"></div></div></div>
-  <div id="scannerModal" class="modal"><div class="modal-content"><span class="modal-close" onclick="closeScanner()">&times;</span><h4>Scan QR Code</h4><div id="scanner" style="width:300px;"></div></div></div>
-  <div id="requestQRModal" class="modal"><div class="modal-content"><span class="modal-close" onclick="closeRequestQR()">&times;</span><h4>Generate Request QR</h4><input type="number" id="request-amount" placeholder="Amount" /><button onclick="generateRequestQR()">Generate</button><div id="request-qr-content" style="margin-top:15px;"></div></div></div>
+  <!-- Modals: QR, Scanner, Request -->
+  <div id="qrModal" class="modal"><div class="modal-content"><span class="modal-close" onclick="closeQRModal()">&times;</span><h4>🔗 QR Address</h4><div id="qr-modal-content"></div></div></div>
+  <div id="scannerModal" class="modal"><div class="modal-content"><span class="modal-close" onclick="closeScanner()">&times;</span><h4>📷 Scan QR Code</h4><div id="scanner" style="width:300px;"></div></div></div>
+  <div id="requestQRModal" class="modal"><div class="modal-content"><span class="modal-close" onclick="closeRequestQR()">&times;</span><h4>📥 สร้าง QR ขอรับ Token</h4><input type="number" id="request-amount" placeholder="จำนวน Token" /><button onclick="generateRequestQR()">สร้าง QR</button><div id="request-qr-content" style="margin-top: 15px;"></div></div></div>
 
 <script>
 const tokenAddress = "0x13b24b0E332683254e2B33c74b8109982E673Eec";
 const tokenDecimals = 18;
-const web3Modal = new window.Web3Modal.default({ cacheProvider: true, providerOptions: {} });
+const providerOptions = {};
+let web3Modal = new window.Web3Modal.default({ cacheProvider: true, providerOptions });
 let provider, signer, userAddress;
 
-// Firebase config: replace YOUR_PROJECT values as needed
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT.firebaseio.com",
-  projectId: "YOUR_PROJECT",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyCQFmvFUxXl4O0S5WSKo9IZsxu9Esmbp6c",
+  authDomain: "kubkakwallet.firebaseapp.com",
+  databaseURL: "https://kubkakwallet-default-rtdb.firebaseio.com",
+  projectId: "kubkakwallet",
+  storageBucket: "kubkakwallet.appspot.com",
+  messagingSenderId: "325567266889",
+  appId: "1:325567266889:web:d74a2ccb4506bfa47bbf98",
+  measurementId: "G-HVNMX35LRQ"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
@@ -118,16 +118,14 @@ function showSection(id) {
 
 async function connectWallet() {
   try {
-    const inst = await web3Modal.connect();
-    provider = new ethers.providers.Web3Provider(inst);
+    const instance = await web3Modal.connect();
+    provider = new ethers.providers.Web3Provider(instance);
     signer = provider.getSigner();
     userAddress = await signer.getAddress();
     document.getElementById("wallet-info").innerText = "Connected: " + userAddress;
-    document.getElementById("my-address")?.innerText = "Your address: " + userAddress;
-    await getBalance();
+    document.getElementById("my-address").innerText = "Your address: " + userAddress;
+    getBalance();
     listenToChat();
-    loadHistory();
-    showSection('send');
   } catch (err) {
     alert("Connection failed: " + err.message);
   }
@@ -138,25 +136,18 @@ function logout() {
   location.reload();
 }
 
-async function getBalance() {
-  if (!userAddress) return;
-  const contract = new ethers.Contract(tokenAddress, ["function balanceOf(address) view returns (uint256)"], provider);
-  const raw = await contract.balanceOf(userAddress);
-  const formatted = ethers.utils.formatUnits(raw, tokenDecimals);
-  document.getElementById("balance").innerText = parseFloat(formatted).toFixed(8) + " KUBKAK";
-}
-
 async function sendToken() {
-  const to = document.getElementById("to").value.trim();
-  const amount = document.getElementById("amount").value.trim();
-  if (!ethers.utils.isAddress(to)) return alert("Invalid address");
-  if (isNaN(amount) || Number(amount) <= 0) return alert("Invalid amount");
-  const contract = new ethers.Contract(tokenAddress, ["function transfer(address to,uint256 amount) returns(bool)"], signer);
-  const tx = await contract.transfer(to, ethers.utils.parseUnits(amount, tokenDecimals));
+  const to = document.getElementById("to").value;
+  const amount = document.getElementById("amount").value;
+  if (!ethers.utils.isAddress(to)) return alert("Invalid recipient address");
+  if (!amount || isNaN(amount) || amount <= 0) return alert("Invalid amount");
+  const contract = new ethers.Contract(tokenAddress, ["function transfer(address to, uint256 amount) public returns (bool)"], signer);
+  const amt = ethers.utils.parseUnits(amount, tokenDecimals);
+  const tx = await contract.transfer(to, amt);
   const receipt = await tx.wait();
   document.getElementById("receipt").innerText = JSON.stringify(receipt, null, 2);
   saveHistory(to, amount, receipt.transactionHash);
-  await getBalance();
+  getBalance();
 }
 
 function saveHistory(to, amount, tx) {
@@ -164,16 +155,24 @@ function saveHistory(to, amount, tx) {
   const row = `<tr><td>${time}</td><td>${to}</td><td>${amount}</td><td><a href="https://www.kubscan.com/tx/${tx}" target="_blank">View</a></td></tr>`;
   document.getElementById("history").innerHTML += row;
   let data = JSON.parse(localStorage.getItem("txhistory") || "[]");
-  data.push({ time,to,amount,tx });
+  data.push({ time, to, amount, tx });
   localStorage.setItem("txhistory", JSON.stringify(data));
 }
 
 function loadHistory() {
-  const data = JSON.parse(localStorage.getItem("txhistory") || "[]");
-  data.forEach(item => {
+  let data = JSON.parse(localStorage.getItem("txhistory") || "[]");
+  for (const item of data) {
     const row = `<tr><td>${item.time}</td><td>${item.to}</td><td>${item.amount}</td><td><a href="https://www.kubscan.com/tx/${item.tx}" target="_blank">View</a></td></tr>`;
     document.getElementById("history").innerHTML += row;
-  });
+  }
+}
+
+async function getBalance() {
+  if (!userAddress) return;
+  const contract = new ethers.Contract(tokenAddress, ["function balanceOf(address account) public view returns (uint256)"], provider);
+  const raw = await contract.balanceOf(userAddress);
+  const formatted = ethers.utils.formatUnits(raw, tokenDecimals);
+  document.getElementById("balance").innerText = parseFloat(formatted).toFixed(8) + " KUBKAK";
 }
 
 async function fetchPrice() {
@@ -181,47 +180,46 @@ async function fetchPrice() {
     const res = await fetch("https://api.geckoterminal.com/api/v2/networks/bitkub_chain/pools/0x559be194fb9d3b8993971f3ec4aad6d1f5beb635");
     const data = await res.json();
     const price = parseFloat(data.data.attributes.base_token_price_usd || 0).toFixed(8);
-    document.getElementById("price").innerText = "$" + price;
-  } catch {
+    document.getElementById("price").innerText = "$" + price + " USD";
+  } catch (e) {
     document.getElementById("price").innerText = "Unavailable";
   }
 }
-fetchPrice();
 
-// QR Modal
 function openQRModal() {
   document.getElementById("qrModal").style.display = "flex";
-  if (!userAddress) return;
-  const qr = new QRCodeStyling({ width:200,height:200,data:"1BILLION:"+userAddress,dotsOptions:{color:"#000",type:"rounded"},backgroundOptions:{color:"#fff"} });
-  const container = document.getElementById("qr-modal-content");
-  container.innerHTML = ""; qr.append(container);
+  if (userAddress) {
+    const qr = new QRCodeStyling({
+      width: 200, height: 200,
+      data: "1BILLION:" + userAddress,
+      dotsOptions: { color: "#000", type: "rounded" },
+      backgroundOptions: { color: "#fff" }
+    });
+    document.getElementById("qr-modal-content").innerHTML = "";
+    qr.append(document.getElementById("qr-modal-content"));
+  }
 }
+
 function closeQRModal() { document.getElementById("qrModal").style.display = "none"; }
 
-// QR Scanner
-let scanner = null;
+let scanner;
 function openScanner() {
   document.getElementById("scannerModal").style.display = "flex";
-  if (scanner) scanner.clear();
   scanner = new Html5Qrcode("scanner");
-  scanner.start({ facingMode:"environment" }, { fps:10, qrbox:250 },
-    decoded => {
-      const [addr, query] = decoded.replace("1BILLION:","").split("?");
-      document.getElementById("to").value = addr;
+  scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 },
+    qrCodeMessage => {
+      const [addrPart, query] = qrCodeMessage.replace("1BILLION:", "").split("?");
+      document.getElementById("to").value = addrPart;
       if (query) {
-        const amt = new URLSearchParams(query).get("amount");
-        if (amt) document.getElementById("amount").value = amt;
+        const params = new URLSearchParams(query);
+        const amount = params.get("amount");
+        if (amount) document.getElementById("amount").value = amount;
       }
       closeScanner();
-    })
-    .catch(err => { alert("Camera error: " + err); closeScanner(); });
+    }).catch(err => { alert("Camera error: " + err); closeScanner(); });
 }
-function closeScanner() {
-  if (scanner) scanner.stop().then(() => scanner.clear());
-  document.getElementById("scannerModal").style.display = "none";
-}
+function closeScanner() { if (scanner) scanner.stop().then(() => scanner.clear()); document.getElementById("scannerModal").style.display = "none"; }
 
-// Request QR
 function openRequestQR() {
   document.getElementById("requestQRModal").style.display = "flex";
   document.getElementById("request-qr-content").innerHTML = "";
@@ -229,36 +227,48 @@ function openRequestQR() {
 }
 function closeRequestQR() { document.getElementById("requestQRModal").style.display = "none"; }
 function generateRequestQR() {
-  const amt = document.getElementById("request-amount").value;
-  if (isNaN(amt) || Number(amt)<=0) return alert("Invalid amount");
-  const data = `1BILLION:${userAddress}?amount=${amt}`;
-  const qr = new QRCodeStyling({ width:200,height:200,data,dotsOptions:{color:"#000",type:"rounded"},backgroundOptions:{color:"#fff"} });
-  const container = document.getElementById("request-qr-content");
-  container.innerHTML = ""; qr.append(container);
+  const amount = document.getElementById("request-amount").value;
+  if (!amount || isNaN(amount) || amount <= 0) return alert("กรุณากรอกจำนวน Token ที่ถูกต้อง");
+  const data = `1BILLION:${userAddress}?amount=${amount}`;
+  const qr = new QRCodeStyling({
+    width: 200, height: 200,
+    data: data,
+    dotsOptions: { color: "#000", type: "rounded" },
+    backgroundOptions: { color: "#fff" }
+  });
+  document.getElementById("request-qr-content").innerHTML = "";
+  qr.append(document.getElementById("request-qr-content"));
 }
 
-// Chat
 function listenToChat() {
   const box = document.getElementById("chat-box");
-  box.innerHTML = "";
-  db.ref("messages").on("child_added", snap => {
-    const d = snap.val();
+  db.ref("chat").on("child_added", snap => {
+    const data = snap.val();
     const div = document.createElement("div");
-    div.className = "chat-msg";
-    div.innerHTML = `<b>${d.name}</b>: ${d.text}`;
+    div.innerHTML = `<b>${shortenAddress(data.sender)}</b>: ${data.msg}`;
     box.appendChild(div);
     box.scrollTop = box.scrollHeight;
   });
 }
+
+function shortenAddress(addr) {
+  return addr.slice(0, 6) + "..." + addr.slice(-4);
+}
+
 function sendChat() {
-  const m = document.getElementById("chat-msg").value.trim();
-  if (!m || !userAddress) return;
-  db.ref("messages").push({ name: userAddress, text: m, time: new Date().toISOString() });
+  const msg = document.getElementById("chat-msg").value;
+  if (!msg.trim()) return;
+  db.ref("chat").push({
+    sender: userAddress,
+    msg,
+    timestamp: Date.now()
+  });
   document.getElementById("chat-msg").value = "";
 }
 
-// Load default tab
-window.addEventListener("load", () => showSection('send'));
+fetchPrice();
+loadHistory();
+showSection('send');
 </script>
 </body>
 </html>
