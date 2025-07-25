@@ -116,16 +116,42 @@ function showSection(id) {
   document.getElementById('tab-' + id).classList.add('active');
 }
 
+// ตรวจสอบว่าเชื่อมกับ Bitkub Chain หรือไม่ (chainId = 96)
+async function checkBitkubChain(provider) {
+  const network = await provider.getNetwork();
+  if(network.chainId !== 96){
+    alert("กรุณาเชื่อมต่อกับเครือข่าย Bitkub Chain (Chain ID: 96) เท่านั้น");
+    throw new Error("Not connected to Bitkub Chain");
+  }
+}
+
 async function connectWallet() {
   try {
     const instance = await web3Modal.connect();
     provider = new ethers.providers.Web3Provider(instance);
+
+    await checkBitkubChain(provider);
+
     signer = provider.getSigner();
     userAddress = await signer.getAddress();
+
     document.getElementById("wallet-info").innerText = "Connected: " + userAddress;
     document.getElementById("my-address").innerText = "Your address: " + userAddress;
+
     getBalance();
     listenToChat();
+
+    // ฟัง event เปลี่ยน network
+    instance.on("chainChanged", async (chainIdHex) => {
+      const chainId = parseInt(chainIdHex, 16);
+      if(chainId !== 96){
+        alert("กรุณาเปลี่ยนเครือข่ายกลับเป็น Bitkub Chain (Chain ID: 96)");
+        logout();
+      } else {
+        location.reload();
+      }
+    });
+
   } catch (err) {
     alert("Connection failed: " + err.message);
   }
