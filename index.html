@@ -224,3 +224,119 @@ function closeQRModal() {
 }
 
 /* QR Scanner */
+let scanner = null;
+function openScanner() {
+  document.getElementById("scannerModal").style.display = "flex";
+  if (scanner) scanner.clear();
+  scanner = new Html5Qrcode("scanner");
+  scanner
+    .start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: 250 },
+      (decodedText) => {
+        const [addrPart, query] = decodedText.replace("1BILLION:", "").split("?");
+        document.getElementById("to").value = addrPart;
+        if (query) {
+          const params = new URLSearchParams(query);
+          const amount = params.get("amount");
+          if (amount) document.getElementById("amount").value = amount;
+        }
+        closeScanner();
+      }
+    )
+    .catch((err) => {
+      alert("กล้องไม่พร้อมใช้งาน: " + err);
+      closeScanner();
+    });
+}
+function closeScanner() {
+  if (scanner) {
+    scanner.stop().then(() => scanner.clear());
+  }
+  document.getElementById("scannerModal").style.display = "none";
+}
+
+/* Request QR */
+function openRequestQR() {
+  document.getElementById("requestQRModal").style.display = "flex";
+  document.getElementById("request-qr-content").innerHTML = "";
+  document.getElementById("request-amount").value = "";
+}
+function closeRequestQR() {
+  document.getElementById("requestQRModal").style.display = "none";
+}
+function generateRequestQR() {
+  const amount = document.getElementById("request-amount").value;
+  if (!amount || isNaN(amount) || amount <= 0) {
+    alert("กรุณากรอกจำนวน Token ที่ถูกต้อง");
+    return;
+  }
+  const data = `1BILLION:${userAddress}?amount=${amount}`;
+  const qr = new QRCodeStyling({
+    width: 200,
+    height: 200,
+    data: data,
+    dotsOptions: { color: "#000", type: "rounded" },
+    backgroundOptions: { color: "#fff" },
+  });
+  const container = document.getElementById("request-qr-content");
+  container.innerHTML = "";
+  qr.append(container);
+}
+
+/* KNS Resolver */
+// TODO: เปลี่ยนค่า knsAddress เป็นที่อยู่ KNS contract จริง
+const knsAddress = "0xYourKNSContractAddressHere";
+let knsContract = null;
+async function resolveKNS(addr) {
+  if (!provider) return shorten(addr);
+  if (!knsContract) {
+    knsContract = new ethers.Contract(
+      knsAddress,
+      ["function nameOf(address) view returns (string)"],
+      provider
+    );
+  }
+  try {
+    const name = await knsContract.nameOf(addr);
+    return name || shorten(addr);
+  } catch {
+    return shorten(addr);
+  }
+}
+function shorten(addr) {
+  return addr.slice(0, 6) + "…" + addr.slice(-4);
+}
+
+/* Chat functions */
+function listenToChat() {
+  const box = document.getElementById("chat-box");
+  box.innerHTML = "";
+  db.ref("messages")
+    .orderByChild("timestamp")
+    .limitToLast(100)
+    .on("child_added", async (snap) => {
+      const { sender, msg } = snap.val();
+      const name = await resolveKNS(sender);
+      const div = document.createElement("div");
+      div.className = "chat-msg";
+      div.innerHTML = `<b>${name}</b>: ${msg}`;
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    });
+}
+
+function sendChat() {
+  const msg = document.getElementById("chat-msg").value.trim();
+  if (!msg || !userAddress) return;
+  db.ref("messages").push({ sender: userAddress, msg, timestamp: Date.now() });
+  document.getElementById("chat-msg").value = "";
+}
+
+/* โหลดเริ่มต้น - ตั้งหน้าแรก */
+window.addEventListener("load", () => {
+  showSection("send");
+});
+</script>
+</body>
+</html>
