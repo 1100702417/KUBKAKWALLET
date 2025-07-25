@@ -2,34 +2,134 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>KUBKAK Wallet - Global Chat</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>KUBKAK Wallet</title>
   <style>
-    body { font-family: sans-serif; background: #121212; color: white; margin: 0; padding: 0; }
-    #chat-box { height: 70vh; overflow-y: scroll; border: 1px solid #444; margin: 20px; padding: 10px; background: #1e1e1e; }
-    #message-input { width: 80%; padding: 10px; }
-    #send-btn { padding: 10px; background: #00c853; color: white; border: none; }
-    .chat-message { margin-bottom: 10px; }
-    .wallet { font-weight: bold; color: #00e5ff; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #121212;
+      color: #fff;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+    .chat-box {
+      border: 1px solid #444;
+      border-radius: 8px;
+      height: 400px;
+      overflow-y: auto;
+      padding: 1rem;
+      background-color: #1f1f1f;
+      margin-bottom: 1rem;
+    }
+    .chat-message {
+      margin-bottom: 0.75rem;
+      padding: 0.5rem;
+      background-color: #2c2c2c;
+      border-radius: 4px;
+    }
+    .chat-message span {
+      font-weight: bold;
+      color: #90caf9;
+    }
+    .input-group {
+      display: flex;
+    }
+    .input-group input {
+      flex: 1;
+      padding: 0.5rem;
+      border: none;
+      border-radius: 4px 0 0 4px;
+    }
+    .input-group button {
+      padding: 0.5rem 1rem;
+      background: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 0 4px 4px 0;
+    }
+    #connectButton {
+      margin-bottom: 1rem;
+      padding: 0.5rem 1rem;
+      background: #1976d2;
+      border: none;
+      border-radius: 4px;
+      color: white;
+    }
   </style>
 </head>
 <body>
-  <h2 style="text-align:center;">KUBKAK Global Chat</h2>
-  <div style="text-align:center; margin-bottom:10px;">
-    <button onclick="connectWallet()">🔌 เชื่อม MetaMask</button>
-    <span id="wallet-address"></span>
+  <div class="container">
+    <h1>KUBKAK Wallet Chat</h1>
+    <button id="connectButton">เชื่อมต่อ Wallet</button>
+    <div class="chat-box" id="chatBox"></div>
+    <div class="input-group">
+      <input type="text" id="messageInput" placeholder="พิมพ์ข้อความของคุณ...">
+      <button onclick="sendMessage()">ส่ง</button>
+    </div>
   </div>
 
-  <div id="chat-box"></div>
-  <div style="text-align:center;">
-    <input type="text" id="message-input" placeholder="พิมพ์ข้อความ..." />
-    <button id="send-btn" onclick="sendMessage()">ส่ง</button>
-  </div>
+  <!-- Firebase SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getDatabase, ref, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-  <script src="firebase.js"></script>
-  <script src="chat.js"></script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCQFmvFUxXl4O0S5WSKo9IZsxu9Esmbp6c",
+      authDomain: "kubkakwallet.firebaseapp.com",
+      databaseURL: "https://kubkakwallet-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "kubkakwallet",
+      storageBucket: "kubkakwallet.appspot.com",
+      messagingSenderId: "325567266889",
+      appId: "1:325567266889:web:d74a2ccb4506bfa47bbf98"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const chatRef = ref(db, 'chat');
+
+    let currentAddress = '';
+
+    document.getElementById("connectButton").onclick = async () => {
+      if (window.ethereum) {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          currentAddress = accounts[0];
+          alert("เชื่อมต่อแล้ว: " + currentAddress);
+        } catch (error) {
+          alert("การเชื่อมต่อถูกยกเลิก");
+        }
+      } else {
+        alert("ไม่พบ MetaMask");
+      }
+    };
+
+    function sendMessage() {
+      const input = document.getElementById("messageInput");
+      const message = input.value.trim();
+      if (!message || !currentAddress) return;
+
+      push(chatRef, {
+        address: currentAddress,
+        message: message,
+        timestamp: Date.now()
+      });
+
+      input.value = '';
+    }
+
+    onChildAdded(chatRef, (data) => {
+      const msg = data.val();
+      const div = document.createElement("div");
+      div.className = "chat-message";
+      div.innerHTML = `<span>${msg.address}:</span> ${msg.message}`;
+      document.getElementById("chatBox").appendChild(div);
+      document.getElementById("chatBox").scrollTop = document.getElementById("chatBox").scrollHeight;
+    });
+  </script>
 </body>
 </html>
