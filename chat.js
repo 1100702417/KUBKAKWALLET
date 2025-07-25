@@ -1,12 +1,12 @@
 // เริ่มต้น Firebase
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
+  apiKey: "AIzaSyCQFmvFUxXl4O0S5WSKo9IZsxu9Esmbp6c",          // เปลี่ยนเป็น API Key ของคุณ
   authDomain: "kubkakwallet.firebaseapp.com",
   databaseURL: "https://kubkakwallet-default-rtdb.firebaseio.com",
   projectId: "kubkakwallet",
   storageBucket: "kubkakwallet.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  messagingSenderId: "325567266889",                            // เปลี่ยนเป็น Sender ID ของคุณ
+  appId: "1:325567266889:web:d74a2ccb4506bfa47bbf98"           // เปลี่ยนเป็น App ID ของคุณ
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
