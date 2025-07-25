@@ -1,342 +1,162 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta charset="UTF-8" />
   <title>KUBKAK Wallet</title>
-  <!-- SDKs -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <!-- Ethers & Web3Modal -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
   <script src="https://unpkg.com/web3modal"></script>
-  <script src="https://unpkg.com/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
-  <script src="https://unpkg.com/html5-qrcode"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+  <!-- Style -->
   <style>
-    body{font-family:sans-serif;background:#f0f2f5;margin:0;padding:20px;}
-    .container{max-width:800px;margin:auto;background:#fff;padding:20px;border-radius:12px;}
-    button{margin:5px;padding:10px;border:none;background:#2b90d9;color:#fff;border-radius:6px;cursor:pointer;}
-    input{padding:5px;margin:5px;}
-    nav{display:flex;gap:10px;margin-top:20px;}
-    nav button{flex:1;background:#eee;color:#333;}
-    nav button.active{background:#2b90d9;color:#fff;}
-    .section{display:none;margin-top:20px;}
-    .section.active{display:block;}
-    #chat-box{border:1px solid #ccc;height:200px;overflow-y:scroll;padding:10px;background:#fafafa;color:#000;}
-    .chat-msg b{color:#2b90d9;}
-    pre { background:#eee; padding:10px; border-radius:8px; max-height:200px; overflow:auto;}
-    iframe {width: 100%; height: 400px; border: none;}
+    body {
+      font-family: sans-serif;
+      background: #121212;
+      color: #eee;
+      margin: 0;
+      padding: 20px;
+    }
+    button {
+      padding: 8px 16px;
+      margin: 5px;
+      border: none;
+      background: #2c87f0;
+      color: white;
+      cursor: pointer;
+    }
+    input {
+      padding: 8px;
+      margin: 5px;
+      width: 100%;
+      max-width: 400px;
+    }
+    #chat-box {
+      border: 1px solid #444;
+      padding: 10px;
+      height: 300px;
+      overflow-y: scroll;
+      background: #1e1e1e;
+    }
+    .chat-msg {
+      margin: 5px 0;
+      padding: 4px;
+      border-bottom: 1px solid #333;
+    }
+    .section {
+      margin-bottom: 20px;
+    }
   </style>
 </head>
 <body>
-<div class="container">
-  <h2>🌐 KUBKAK Wallet (Bitkub Chain)</h2>
-  <div id="wallet-info">Not connected</div>
-  <button onclick="connectWallet()">🔗 Connect Wallet</button>
-  <button onclick="logout()">Logout</button>
-  <div><b>💰 Token Balance:</b> <span id="balance">-</span></div>
-  <div><b>📈 Price:</b> <span id="price">Loading...</span></div>
-  <nav>
-    <button onclick="showSection('send')" id="tab-send">📤 โอน</button>
-    <button onclick="showSection('receive')" id="tab-receive">📥 รับ</button>
-    <button onclick="showSection('history')" id="tab-history">🧾 ประวัติ</button>
-    <button onclick="showSection('chart')" id="tab-chart">📈 กราฟ</button>
-    <button onclick="showSection('chat')" id="tab-chat">💬 แชท</button>
-  </nav>
+  <h1>KUBKAK Wallet</h1>
 
-  <div id="section-send" class="section">
-    <h3>📤 Send Token</h3>
-    <input id="to" placeholder="Recipient address"/>
-    <input id="amount" type="number" placeholder="Amount"/>
-    <button onclick="sendToken()">Send</button>
-    <button onclick="openScanner()">📷 QR Send</button>
-    <h4>🧾 Receipt</h4><pre id="receipt"></pre>
+  <!-- Wallet -->
+  <div class="section">
+    <button onclick="connectWallet()">🦊 เชื่อม MetaMask</button>
+    <p id="wallet-address">ยังไม่ได้เชื่อมกระเป๋า</p>
   </div>
 
-  <div id="section-receive" class="section">
-    <h3>📥 Receive Token</h3>
-    <div id="my-address">Your address: -</div>
-    <button onclick="openQRModal()">📲 Show QR</button>
-    <button onclick="openRequestQR()">📥 Request QR</button>
+  <!-- ส่ง Token -->
+  <div class="section">
+    <h3>🚀 โอน 1₿illion Coin</h3>
+    <input id="to" placeholder="Address ผู้รับ">
+    <input id="amount" placeholder="จำนวน Token" type="number">
+    <button onclick="transferToken()">ส่ง Token</button>
+    <p id="tx-result"></p>
   </div>
 
-  <div id="section-history" class="section">
-    <h3>📜 Transfer History</h3>
-    <table>
-      <thead><tr><th>Time</th><th>To</th><th>Amount</th><th>TX</th></tr></thead>
-      <tbody id="history"></tbody>
-    </table>
-  </div>
-
-  <div id="section-chart" class="section">
-    <h3>📈 Token Chart</h3>
-    <iframe src="https://www.geckoterminal.com/bitkub_chain/pools/0x559be194fb9d3b8993971f3ec4aad6d1f5beb635?embed=1&info=0&swaps=0&grayscale=0&light_chart=0&chart_type=price&resolution=1month"></iframe>
-  </div>
-
-  <div id="section-chat" class="section">
+  <!-- แชท -->
+  <div class="section">
     <h3>💬 Global Chat</h3>
     <div id="chat-box"></div>
-    <input id="chat-msg" placeholder="พิมพ์ข้อความ..."/>
-    <button onclick="sendChat()">ส่ง</button>
+    <input id="chat-msg" placeholder="พิมพ์ข้อความ...">
+    <button onclick="sendChat()">ส่งข้อความ</button>
   </div>
-</div>
 
-<script>
-const tokenAddress = "0x13b24b0E332683254e2B33c74b8109982E673Eec";
-const tokenDecimals = 18;
-const providerOptions = {};
-const web3Modal = new window.Web3Modal.default({ cacheProvider: true, providerOptions });
-let provider, signer, userAddress;
+  <!-- Firebase + Wallet Logic -->
+  <script>
+    // Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyCQFmvFUxXl4O0S5WSKo9IZsxu9Esmbp6c",
+      authDomain: "kubkakwallet.firebaseapp.com",
+      databaseURL: "https://kubkakwallet-default-rtdb.firebaseio.com",
+      projectId: "kubkakwallet",
+      storageBucket: "kubkakwallet.appspot.com",
+      messagingSenderId: "325567266889",
+      appId: "1:325567266889:web:d74a2ccb4506bfa47bbf98"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-/* Firebase */
-const firebaseConfig = {
-  apiKey: "AIzaSyCQFmvFUxXl4O0S5WSKo9IZsxu9Esmbp6c",
-  authDomain: "kubkakwallet.firebaseapp.com",
-  // ตรวจสอบให้แน่ใจ URL ถูกต้อง
-  databaseURL: "https://kubkakwallet-default-rtdb.firebaseio.com",
-  projectId: "kubkakwallet",
-  storageBucket: "kubkakwallet.appspot.com",
-  messagingSenderId: "325567266889",
-  appId: "1:325567266889:web:d74a2ccb4506bfa47bbf98"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+    // Web3
+    let provider, signer, userAddress;
+    const tokenAddress = "0x4dc6f1fa9fd93f28d9b3b37592c572ba18bf6f10"; // 1₿illion Coin
+    const tokenABI = [
+      "function transfer(address to, uint amount) public returns (bool)",
+      "function decimals() public view returns (uint8)"
+    ];
 
-/* แสดง section ตามแท็บ */
-function showSection(id) {
-  document.querySelectorAll(".section").forEach((s) => s.classList.remove("active"));
-  document.querySelectorAll("nav button").forEach((b) => b.classList.remove("active"));
-  document.getElementById("section-" + id).classList.add("active");
-  document.getElementById("tab-" + id).classList.add("active");
-}
+    async function connectWallet() {
+      const web3Modal = new window.Web3Modal.default();
+      const instance = await web3Modal.connect();
+      provider = new ethers.providers.Web3Provider(instance);
+      signer = provider.getSigner();
+      userAddress = await signer.getAddress();
+      const knsName = await resolveKNS(userAddress);
+      document.getElementById("wallet-address").textContent = `Connected: ${knsName}`;
+    }
 
-/* เชื่อมต่อ Wallet */
-async function connectWallet() {
-  try {
-    const instance = await web3Modal.connect();
-    provider = new ethers.providers.Web3Provider(instance);
-    signer = provider.getSigner();
-    userAddress = await signer.getAddress();
-    document.getElementById("wallet-info").innerText = "Connected: " + userAddress;
-    document.getElementById("my-address").innerText = "Your address: " + userAddress;
-    await getBalance();
-    listenToChat();
-    loadHistory();
-    showSection("send");
-  } catch (e) {
-    alert(e.message);
-  }
-}
+    async function transferToken() {
+      const to = document.getElementById("to").value;
+      const amount = document.getElementById("amount").value;
+      const token = new ethers.Contract(tokenAddress, tokenABI, signer);
+      const decimals = await token.decimals();
+      const tx = await token.transfer(to, ethers.utils.parseUnits(amount, decimals));
+      document.getElementById("tx-result").textContent = "รอการยืนยัน...";
+      await tx.wait();
+      document.getElementById("tx-result").textContent = `✅ ส่งเรียบร้อย: ${tx.hash}`;
+    }
 
-function logout() {
-  web3Modal.clearCachedProvider();
-  location.reload();
-}
+    function sendChat() {
+      const msg = document.getElementById("chat-msg").value.trim();
+      if (!msg || !userAddress) return;
+      db.ref("chat").push({ sender: userAddress, msg, timestamp: Date.now() });
+      document.getElementById("chat-msg").value = "";
+    }
 
-/* ดึงยอด Token */
-async function getBalance() {
-  if (!userAddress) return;
-  const contract = new ethers.Contract(
-    tokenAddress,
-    ["function balanceOf(address) view returns (uint256)"],
-    provider
-  );
-  const raw = await contract.balanceOf(userAddress);
-  const formatted = ethers.utils.formatUnits(raw, tokenDecimals);
-  document.getElementById("balance").innerText = parseFloat(formatted).toFixed(8) + " KUBKAK";
-}
+    function listenToChat() {
+      const box = document.getElementById("chat-box");
+      box.innerHTML = "";
+      db.ref("chat")
+        .orderByChild("timestamp")
+        .limitToLast(100)
+        .on("child_added", async (snap) => {
+          const { sender, msg } = snap.val();
+          const name = await resolveKNS(sender);
+          const div = document.createElement("div");
+          div.className = "chat-msg";
+          div.innerHTML = `<b>${name}</b>: ${msg}`;
+          box.appendChild(div);
+          box.scrollTop = box.scrollHeight;
+        });
+    }
 
-/* ส่ง Token */
-async function sendToken() {
-  const to = document.getElementById("to").value.trim();
-  const amount = document.getElementById("amount").value.trim();
-  if (!ethers.utils.isAddress(to)) return alert("ที่อยู่ผู้รับไม่ถูกต้อง");
-  if (!amount || isNaN(amount) || parseFloat(amount) <= 0) return alert("จำนวนไม่ถูกต้อง");
-  const contract = new ethers.Contract(
-    tokenAddress,
-    ["function transfer(address to, uint256 amount) public returns (bool)"],
-    signer
-  );
-  const amt = ethers.utils.parseUnits(amount, tokenDecimals);
-  try {
-    const tx = await contract.transfer(to, amt);
-    const receipt = await tx.wait();
-    document.getElementById("receipt").innerText = JSON.stringify(receipt, null, 2);
-    saveHistory(to, amount, receipt.transactionHash);
-    getBalance();
-    alert("ส่งสำเร็จ");
-  } catch (e) {
-    alert("ส่งไม่สำเร็จ: " + e.message);
-  }
-}
-
-/* บันทึกประวัติใน localStorage และแสดงตาราง */
-function saveHistory(to, amount, tx) {
-  const time = new Date().toLocaleString();
-  const row = `<tr><td>${time}</td><td>${to}</td><td>${amount}</td><td><a href="https://www.kubscan.com/tx/${tx}" target="_blank">View</a></td></tr>`;
-  document.getElementById("history").innerHTML += row;
-
-  let data = JSON.parse(localStorage.getItem("txhistory") || "[]");
-  data.push({ time, to, amount, tx });
-  localStorage.setItem("txhistory", JSON.stringify(data));
-}
-
-/* โหลดประวัติจาก localStorage */
-function loadHistory() {
-  let data = JSON.parse(localStorage.getItem("txhistory") || "[]");
-  data.forEach((item) => {
-    const row = `<tr><td>${item.time}</td><td>${item.to}</td><td>${item.amount}</td><td><a href="https://www.kubscan.com/tx/${item.tx}" target="_blank">View</a></td></tr>`;
-    document.getElementById("history").innerHTML += row;
-  });
-}
-
-/* ดึงราคาจาก GeckoTerminal API */
-async function fetchPrice() {
-  try {
-    const res = await fetch(
-      "https://api.geckoterminal.com/api/v2/networks/bitkub_chain/pools/0x559be194fb9d3b8993971f3ec4aad6d1f5beb635"
-    );
-    const data = await res.json();
-    const price = parseFloat(data.data.attributes.base_token_price_usd || 0).toFixed(8);
-    document.getElementById("price").innerText = "$" + price + " USD";
-  } catch {
-    document.getElementById("price").innerText = "Unavailable";
-  }
-}
-fetchPrice();
-
-/* Modal QR */
-function openQRModal() {
-  document.getElementById("qrModal").style.display = "flex";
-  if (!userAddress) return;
-  const qr = new QRCodeStyling({
-    width: 200,
-    height: 200,
-    data: "1BILLION:" + userAddress,
-    dotsOptions: { color: "#000", type: "rounded" },
-    backgroundOptions: { color: "#fff" },
-  });
-  const container = document.getElementById("qr-modal-content");
-  container.innerHTML = "";
-  qr.append(container);
-}
-function closeQRModal() {
-  document.getElementById("qrModal").style.display = "none";
-}
-
-/* QR Scanner */
-let scanner = null;
-function openScanner() {
-  document.getElementById("scannerModal").style.display = "flex";
-  if (scanner) scanner.clear();
-  scanner = new Html5Qrcode("scanner");
-  scanner
-    .start(
-      { facingMode: "environment" },
-      { fps: 10, qrbox: 250 },
-      (decodedText) => {
-        const [addrPart, query] = decodedText.replace("1BILLION:", "").split("?");
-        document.getElementById("to").value = addrPart;
-        if (query) {
-          const params = new URLSearchParams(query);
-          const amount = params.get("amount");
-          if (amount) document.getElementById("amount").value = amount;
-        }
-        closeScanner();
+    async function resolveKNS(addr) {
+      try {
+        const res = await fetch(`https://kubname.com/api/resolve/${addr}`);
+        const data = await res.json();
+        return data.name || addr.slice(0, 6) + "..." + addr.slice(-4);
+      } catch {
+        return addr.slice(0, 6) + "..." + addr.slice(-4);
       }
-    )
-    .catch((err) => {
-      alert("กล้องไม่พร้อมใช้งาน: " + err);
-      closeScanner();
+    }
+
+    window.addEventListener("load", () => {
+      listenToChat();
     });
-}
-function closeScanner() {
-  if (scanner) {
-    scanner.stop().then(() => scanner.clear());
-  }
-  document.getElementById("scannerModal").style.display = "none";
-}
-
-/* Request QR */
-function openRequestQR() {
-  document.getElementById("requestQRModal").style.display = "flex";
-  document.getElementById("request-qr-content").innerHTML = "";
-  document.getElementById("request-amount").value = "";
-}
-function closeRequestQR() {
-  document.getElementById("requestQRModal").style.display = "none";
-}
-function generateRequestQR() {
-  const amount = document.getElementById("request-amount").value;
-  if (!amount || isNaN(amount) || amount <= 0) {
-    alert("กรุณากรอกจำนวน Token ที่ถูกต้อง");
-    return;
-  }
-  const data = `1BILLION:${userAddress}?amount=${amount}`;
-  const qr = new QRCodeStyling({
-    width: 200,
-    height: 200,
-    data: data,
-    dotsOptions: { color: "#000", type: "rounded" },
-    backgroundOptions: { color: "#fff" },
-  });
-  const container = document.getElementById("request-qr-content");
-  container.innerHTML = "";
-  qr.append(container);
-}
-
-/* KNS Resolver */
-// TODO: เปลี่ยนค่า knsAddress เป็นที่อยู่ KNS contract จริง
-const knsAddress = "0xYourKNSContractAddressHere";
-let knsContract = null;
-async function resolveKNS(addr) {
-  if (!provider) return shorten(addr);
-  if (!knsContract) {
-    knsContract = new ethers.Contract(
-      knsAddress,
-      ["function nameOf(address) view returns (string)"],
-      provider
-    );
-  }
-  try {
-    const name = await knsContract.nameOf(addr);
-    return name || shorten(addr);
-  } catch {
-    return shorten(addr);
-  }
-}
-function shorten(addr) {
-  return addr.slice(0, 6) + "…" + addr.slice(-4);
-}
-
-/* Chat functions */
-function listenToChat() {
-  const box = document.getElementById("chat-box");
-  box.innerHTML = "";
-  db.ref("messages")
-    .orderByChild("timestamp")
-    .limitToLast(100)
-    .on("child_added", async (snap) => {
-      const { sender, msg } = snap.val();
-      const name = await resolveKNS(sender);
-      const div = document.createElement("div");
-      div.className = "chat-msg";
-      div.innerHTML = `<b>${name}</b>: ${msg}`;
-      box.appendChild(div);
-      box.scrollTop = box.scrollHeight;
-    });
-}
-
-function sendChat() {
-  const msg = document.getElementById("chat-msg").value.trim();
-  if (!msg || !userAddress) return;
-  db.ref("messages").push({ sender: userAddress, msg, timestamp: Date.now() });
-  document.getElementById("chat-msg").value = "";
-}
-
-/* โหลดเริ่มต้น - ตั้งหน้าแรก */
-window.addEventListener("load", () => {
-  showSection("send");
-});
-</script>
+  </script>
 </body>
 </html>
