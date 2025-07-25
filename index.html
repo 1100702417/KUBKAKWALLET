@@ -4,92 +4,124 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>KUBKAK Wallet</title>
-
-  <!-- ─── SDKs ─────────────────────────────────────────── -->
-  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
-  <script src="https://unpkg.com/web3modal"></script>
-  <script src="https://unpkg.com/qr-code-styling@1.5.0/lib/qr-code-styling.js"></script>
-  <script src="https://unpkg.com/html5-qrcode"></script>
-
-  <!-- Firebase (Compat SDK → ใช้กับ firebase.initializeApp ได้เลย) -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-
   <style>
-    /* … (สไตล์ทั้งหมดเหมือนเดิม ตัดออกเพื่อย่อ) … */
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #121212;
+      color: #fff;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 500px;
+      margin: auto;
+      padding: 20px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    button {
+      padding: 10px 15px;
+      margin: 5px;
+      background-color: #00c853;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #chat-box {
+      background-color: #1e1e1e;
+      height: 300px;
+      overflow-y: auto;
+      border: 1px solid #333;
+      padding: 10px;
+      border-radius: 5px;
+      margin-bottom: 10px;
+    }
+    #msg {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #444;
+      border-radius: 5px;
+      background-color: #2c2c2c;
+      color: #fff;
+    }
   </style>
 </head>
 <body>
-  <!-- … (markup ทั้งหมดเหมือนไฟล์เดิม) … -->
+  <div class="container">
+    <h1>KUBKAK Wallet 💬</h1>
+    <button onclick="connect()">🔌 เชื่อมต่อ MetaMask</button>
+    <div id="account"></div>
 
-<script>
-/* ───────────── 1. Token / Web3Modal ───────────── */
-const tokenAddress  = "0x13b24b0E332683254e2B33c74b8109982E673Eec";
-const tokenDecimals = 18;
-const providerOptions = {};
-const web3Modal = new window.Web3Modal.default({ cacheProvider:true, providerOptions });
-let provider, signer, userAddress;
+    <hr/>
 
-/* ───────────── 2. Firebase Config (ใช้ของจริงแล้ว) ───────────── */
-const firebaseConfig = {
-  apiKey: "AIzaSyCQFmvFUxXl4O0S5WSKo9IZsxu9Esmbp6c",
-  authDomain: "kubkakwallet.firebaseapp.com",
-  databaseURL: "https://kubkakwallet-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "kubkakwallet",
-  storageBucket: "kubkakwallet.appspot.com",
-  messagingSenderId: "325567266889",
-  appId: "1:325567266889:web:d74a2ccb4506bfa47bbf98"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+    <h3>💬 Global Chat</h3>
+    <div id="chat-box"></div>
+    <input type="text" id="msg" placeholder="พิมพ์ข้อความของคุณ...">
+    <button onclick="send()">ส่ง</button>
+  </div>
 
-/* ───────────── 3. UI helper (เหมือนเดิม) ───────────── */
-function showSection(id){ /* … (เหมือนเดิม) … */ }
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
 
-/* ───────────── 4. Wallet connect + Chat listener ───────────── */
-async function connectWallet(){
-  try{
-    const instance = await web3Modal.connect();
-    provider      = new ethers.providers.Web3Provider(instance);
-    signer        = provider.getSigner();
-    userAddress   = await signer.getAddress();
+  <!-- Web3 -->
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
 
-    document.getElementById("wallet-info").innerText = "Connected: "+userAddress;
-    document.getElementById("my-address").innerText  = "Your address: "+userAddress;
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCQFmvFUxXl4O0S5WSKo9IZsxu9Esmbp6c",
+      authDomain: "kubkakwallet.firebaseapp.com",
+      databaseURL: "https://kubkakwallet-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "kubkakwallet",
+      storageBucket: "kubkakwallet.appspot.com",
+      messagingSenderId: "325567266889",
+      appId: "1:325567266889:web:d74a2ccb4506bfa47bbf98"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-    getBalance();
-    listenToChat();   // ✅ เริ่มดึง Global Chat ทุกข้อความ
-  }catch(e){ alert(e.message); }
-}
+    let address;
 
-/* ───────────── 5. Global Chat (ไม่กรอง address) ───────────── */
-function listenToChat(){
-  const box = document.getElementById("chat-box");
-  db.ref("chat").orderByChild("timestamp").limitToLast(200)
-    .on("child_added", snap=>{
-      const { sender, msg } = snap.val();
-      const div = document.createElement("div");
-      div.innerHTML = `<b>${shortenAddress(sender)}</b>: ${msg}`;
-      box.appendChild(div);
-      box.scrollTop = box.scrollHeight;
-    });
-}
+    async function connect() {
+      if (!window.ethereum) return alert("กรุณาติดตั้ง MetaMask ก่อน");
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      const signer = provider.getSigner();
+      address = await signer.getAddress();
+      document.getElementById("account").innerText = `👤 คุณ: ${address}`;
+    }
 
-function sendChat(){
-  const msg = document.getElementById("chat-msg").value.trim();
-  if(!msg) return;
-  db.ref("chat").push({ sender:userAddress, msg, timestamp:Date.now() });
-  document.getElementById("chat-msg").value = "";
-}
+    function shortenAddress(addr) {
+      return addr.slice(0, 6) + "..." + addr.slice(-4);
+      // รองรับชื่อ KNS ได้ภายหลังโดย map ชื่อจาก Firebase หรือ Smart Contract
+    }
 
-function shortenAddress(a){ return a.slice(0,6)+"…"+a.slice(-4); }
+    function send() {
+      const text = document.getElementById("msg").value.trim();
+      if (!text || !address) return;
+      db.ref("chat").push({
+        sender: address,
+        msg: text,
+        timestamp: Date.now()
+      });
+      document.getElementById("msg").value = "";
+    }
 
-/* ───────────── 6. ฟังก์ชันอื่น (ส่ง Token, QR ฯลฯ) เหมือนเดิม ───────────── */
+    function listenToChat() {
+      const box = document.getElementById("chat-box");
+      db.ref("chat").orderByChild("timestamp").limitToLast(100).on("child_added", snap => {
+        const data = snap.val();
+        const div = document.createElement("div");
+        div.innerHTML = `<b>${shortenAddress(data.sender)}</b>: ${data.msg}`;
+        box.appendChild(div);
+        box.scrollTop = box.scrollHeight;
+      });
+    }
 
-/* ───────────── 7. เริ่มต้น ───────────── */
-fetchPrice();
-loadHistory();
-showSection('send');
-</script>
+    listenToChat();
+  </script>
 </body>
 </html>
